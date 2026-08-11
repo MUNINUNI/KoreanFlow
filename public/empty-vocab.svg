@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <!-- 空状态：打开的空笔记本 + 铅笔，暖灰褐线条风 -->
+  <g fill="none" stroke="#A79C90" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 笔记本左页 -->
+    <path d="M200 70 C160 55 110 55 75 68 L75 220 C110 208 160 208 200 222 Z" fill="#FFFDF9"/>
+    <!-- 笔记本右页 -->
+    <path d="M200 70 C240 55 290 55 325 68 L325 220 C290 208 240 208 200 222 Z" fill="#FFFDF9"/>
+    <!-- 书脊 -->
+    <path d="M200 70 L200 222"/>
+    <!-- 内页横线 -->
+    <path d="M95 95 L180 90 M95 120 L180 115 M95 145 L180 140 M95 170 L180 165" opacity="0.5"/>
+    <path d="M220 90 L305 95 M220 115 L305 120 M220 140 L305 145 M220 165 L305 170" opacity="0.5"/>
+  </g>
+  <!-- 铅笔 -->
+  <g transform="rotate(24 310 235)">
+    <rect x="240" y="222" width="110" height="16" rx="4" fill="#D9A441"/>
+    <polygon points="350,222 372,230 350,238" fill="#F3ECE1" stroke="#A79C90" stroke-width="2"/>
+    <polygon points="366,228 372,230 366,232" fill="#2E2A26"/>
+    <rect x="240" y="222" width="14" height="16" rx="4" fill="#C96F4A"/>
+  </g>
+  <!-- 点缀 -->
+  <circle cx="90" cy="60" r="4" fill="#F4DDD0"/>
+  <circle cx="330" cy="50" r="5" fill="#F3ECE1"/>
+  <path d="M60 250 h20 M70 240 v20" stroke="#D9A441" stroke-width="3" stroke-linecap="round"/>
+</svg>

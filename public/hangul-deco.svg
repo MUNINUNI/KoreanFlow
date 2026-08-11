@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <!-- 装饰性散落字母：8% 不透明度，沿边缘散布 -->
+  <g font-family="'Noto Serif KR', serif" font-weight="700" fill="#C96F4A" opacity="0.08">
+    <text x="40" y="90" font-size="64" transform="rotate(-12 40 90)">ㅏ</text>
+    <text x="180" y="50" font-size="48" transform="rotate(8 180 50)">ㄱ</text>
+    <text x="700" y="80" font-size="72" transform="rotate(10 700 80)">ㅗ</text>
+    <text x="620" y="40" font-size="40" transform="rotate(-6 620 40)">ㅅ</text>
+    <text x="760" y="300" font-size="56" transform="rotate(-14 760 300)">ㅜ</text>
+    <text x="30" y="320" font-size="52" transform="rotate(12 30 320)">ㄴ</text>
+    <text x="740" y="560" font-size="64" transform="rotate(6 740 560)">ㅓ</text>
+    <text x="50" y="580" font-size="44" transform="rotate(-8 50 580)">ㅁ</text>
+    <text x="120" y="760" font-size="68" transform="rotate(10 120 760)">ㅣ</text>
+    <text x="380" y="770" font-size="50" transform="rotate(-10 380 770)">ㄷ</text>
+    <text x="660" y="750" font-size="60" transform="rotate(14 660 750)">ㅡ</text>
+    <text x="420" y="60" font-size="46" transform="rotate(-4 420 60)">ㅂ</text>
+  </g>
+</svg>

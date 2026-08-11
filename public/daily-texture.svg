@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- 手账点纹：暖褐 5% 不透明度，平铺 -->
+  <circle cx="12" cy="12" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="36" cy="12" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="12" cy="36" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="36" cy="36" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="24" cy="24" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="0" cy="24" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="48" cy="24" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="24" cy="0" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="24" cy="48" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="0" cy="0" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="48" cy="0" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="0" cy="48" r="1.2" fill="#6B625A" opacity="0.05"/>
+  <circle cx="48" cy="48" r="1.2" fill="#6B625A" opacity="0.05"/>
+</svg>

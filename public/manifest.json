@@ -1,0 +1,18 @@
+{
+  "name": "韩之语 · 韩语学习",
+  "short_name": "韩之语",
+  "description": "从 40 音到真实语料，听说读写一站式韩语自习室。离线优先。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF6F0",
+  "theme_color": "#FAF6F0",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

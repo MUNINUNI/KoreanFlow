@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="48" viewBox="0 0 160 48">
+  <!-- 印章方块 -->
+  <rect x="2" y="4" width="40" height="40" rx="10" fill="#C96F4A"/>
+  <text x="22" y="34" font-family="'Noto Serif KR', serif" font-weight="700" font-size="26" fill="#FFFDF9" text-anchor="middle">한</text>
+  <!-- 中文名 -->
+  <text x="50" y="33" font-family="'Noto Serif SC', serif" font-weight="700" font-size="24" fill="#2E2A26">韩之语</text>
+</svg>

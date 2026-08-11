@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <!-- 空状态：文件夹 + 音符 + 文档，暖色线条风 -->
+  <g fill="none" stroke="#A79C90" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 文件夹 -->
+    <path d="M70 110 L70 220 Q70 232 82 232 L250 232 Q262 232 262 220 L262 130 Q262 118 250 118 L150 118 L134 98 L82 98 Q70 98 70 110 Z" fill="#FFFDF9"/>
+    <path d="M70 148 L262 148" opacity="0.5"/>
+  </g>
+  <!-- 文档 -->
+  <g transform="rotate(8 300 120)">
+    <rect x="270" y="70" width="80" height="100" rx="8" fill="#FFFDF9" stroke="#A79C90" stroke-width="3"/>
+    <path d="M284 95 h52 M284 112 h52 M284 129 h34" stroke="#A79C90" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  <!-- 音符 -->
+  <g stroke="#C96F4A" stroke-width="3" fill="#C96F4A" stroke-linecap="round">
+    <path d="M120 60 L120 95" fill="none"/>
+    <path d="M120 60 Q140 56 148 66" fill="none"/>
+    <ellipse cx="114" cy="98" rx="8" ry="6" transform="rotate(-20 114 98)"/>
+  </g>
+  <g stroke="#D9A441" stroke-width="3" fill="#D9A441" stroke-linecap="round" transform="translate(60,20)">
+    <path d="M120 60 L120 95" fill="none"/>
+    <ellipse cx="114" cy="98" rx="7" ry="5" transform="rotate(-20 114 98)"/>
+  </g>
+  <!-- 点缀 -->
+  <circle cx="60" cy="70" r="4" fill="#F4DDD0"/>
+  <circle cx="350" cy="220" r="5" fill="#F3ECE1"/>
+  <path d="M330 250 h18 M339 241 v18" stroke="#7A8450" stroke-width="3" stroke-linecap="round"/>
+</svg>
