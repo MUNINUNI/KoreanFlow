@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&family=Noto+Serif+SC:wght@600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* shadcn 变量（映射到暖色系，供 ui 组件使用） */
+    --background: 36 47% 96%;        /* #FAF6F0 */
+    --foreground: 30 8% 16%;         /* #2E2A26 */
+    --card: 40 100% 99%;             /* #FFFDF9 */
+    --card-foreground: 30 8% 16%;
+    --popover: 40 100% 99%;
+    --popover-foreground: 30 8% 16%;
+    --primary: 19 53% 54%;           /* #C96F4A 赤陶橘 */
+    --primary-foreground: 40 100% 99%;
+    --secondary: 34 33% 92%;         /* #F3ECE1 */
+    --secondary-foreground: 30 8% 16%;
+    --muted: 34 33% 92%;
+    --muted-foreground: 30 6% 39%;   /* #6B625A */
+    --accent: 34 33% 92%;
+    --accent-foreground: 30 8% 16%;
+    --destructive: 19 62% 44%;       /* #B4552D */
+    --destructive-foreground: 40 100% 99%;
+    --border: 36 26% 87%;            /* #E8DFD3 */
+    --input: 36 26% 87%;
+    --ring: 19 53% 54%;
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    /* 深色模式（design.md 可选 PWA 主题） */
+    --background: 25 12% 11%;        /* #211D19 */
+    --foreground: 36 21% 90%;        /* #EDE6DC */
+    --card: 27 11% 15%;              /* #2A2521 */
+    --card-foreground: 36 21% 90%;
+    --popover: 27 11% 15%;
+    --popover-foreground: 36 21% 90%;
+    --primary: 19 53% 54%;
+    --primary-foreground: 40 100% 99%;
+    --secondary: 27 10% 20%;
+    --secondary-foreground: 36 21% 90%;
+    --muted: 27 10% 20%;
+    --muted-foreground: 30 6% 63%;
+    --accent: 27 10% 20%;
+    --accent-foreground: 36 21% 90%;
+    --destructive: 19 62% 44%;
+    --destructive-foreground: 40 100% 99%;
+    --border: 27 10% 22%;
+    --input: 27 10% 22%;
+    --ring: 19 53% 54%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    /* iOS 触摸高亮关闭（design.md） */
+    -webkit-tap-highlight-color: transparent;
+  }
+  html {
+    scroll-behavior: smooth;
+    /* 弹性适配基座：任何子元素溢出都不允许撑出横向滚动条 */
+    overflow-x: clip;
+  }
+  body {
+    @apply bg-base text-ink font-sans;
+    /* 纸感背景：全局米白底 + 极轻点纹 */
+    background-image: url('/daily-texture.svg');
+    line-height: 1.8;
+    overflow-x: clip;
+  }
+  /* 媒体元素永远不超出容器宽度 */
+  img,
+  svg,
+  video,
+  canvas {
+    max-width: 100%;
+    height: auto;
+  }
+  /* 长文本（韩语句子、URL、无空格串）允许断行，避免撑破卡片 */
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  span,
+  a,
+  button {
+    overflow-wrap: break-word;
+  }
+  /* 韩语内容使用韩语衬线字体 */
+  .font-kr {
+    font-family: 'Noto Serif KR', 'Noto Serif SC', serif;
+  }
+}
