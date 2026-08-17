@@ -8,6 +8,8 @@ import Hangul from './pages/Hangul';
 import Vocabulary from './pages/Vocabulary';
 import Pronunciation from './pages/Pronunciation';
 import Corpus from './pages/Corpus';
+import Review from './pages/Review';
+import Profile from './pages/Profile';
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
         <Route path="vocabulary" element={<Vocabulary />} />
         <Route path="pronunciation" element={<Pronunciation />} />
         <Route path="corpus" element={<Corpus />} />
+        <Route path="review" element={<Review />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
     </Routes>
   );
