@@ -108,6 +108,8 @@ export function syncVocabAdd(entry: {
   zh?: string;
   pos?: string;
   source?: string;
+  exampleKo?: string;
+  exampleZh?: string;
 }): void {
   try {
     void client.vocab.add.mutate({ deviceId: getDeviceId(), ...entry }).catch(() => {});

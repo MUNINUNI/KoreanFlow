@@ -31,9 +31,11 @@ export interface CorpusMeta {
 }
 
 const DB_NAME = 'hjy-corpus';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_FILES = 'corpus-files';
 const STORE_META = 'corpus-meta';
+/** 转写文稿 store：key = 语料 id */
+const STORE_TRANSCRIPTS = 'corpus-transcripts';
 
 /** 打开（并按需创建）语料数据库 */
 function getDB(): Promise<IDBPDatabase> {
@@ -41,8 +43,14 @@ function getDB(): Promise<IDBPDatabase> {
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE_FILES)) db.createObjectStore(STORE_FILES);
       if (!db.objectStoreNames.contains(STORE_META)) db.createObjectStore(STORE_META);
+      if (!db.objectStoreNames.contains(STORE_TRANSCRIPTS)) db.createObjectStore(STORE_TRANSCRIPTS);
     },
   });
+}
+
+/** 是否 DOCX 文档（text 类语料的细分） */
+export function isDocxMeta(m: Pick<CorpusMeta, 'name' | 'mime'>): boolean {
+  return m.name.toLowerCase().endsWith('.docx') || m.mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 }
 
 /** 生成唯一 ID */
@@ -57,6 +65,8 @@ export function detectKind(file: File): CorpusKind | null {
   if (file.type.startsWith('video/') || ['mp4', 'webm', 'mov', 'mkv'].includes(ext)) return 'video';
   if (file.type === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (file.type.startsWith('text/') || ['txt', 'md', 'srt'].includes(ext)) return 'text';
+  // DOCX 归入文本类（阅读器用 mammoth 提取正文）
+  if (ext === 'docx' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'text';
   return null;
 }
 
@@ -88,12 +98,13 @@ export async function updateCorpusMeta(meta: CorpusMeta): Promise<void> {
   await db.put(STORE_META, meta, meta.id);
 }
 
-/** 删除语料（Blob + 元信息） */
+/** 删除语料（Blob + 元信息 + 转写文稿） */
 export async function deleteCorpus(id: string): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction([STORE_FILES, STORE_META], 'readwrite');
+  const tx = db.transaction([STORE_FILES, STORE_META, STORE_TRANSCRIPTS], 'readwrite');
   await tx.objectStore(STORE_FILES).delete(id);
   await tx.objectStore(STORE_META).delete(id);
+  await tx.objectStore(STORE_TRANSCRIPTS).delete(id);
   await tx.done;
 }
 
@@ -187,6 +198,44 @@ export async function computePeaks(blob: Blob, bars = 200): Promise<number[] | u
   } catch {
     return undefined;
   }
+}
+
+/* ---------------- 转写文稿（逐句学习） ---------------- */
+
+/** 工作台句子（与 segment.ts 的 TranscriptSentence 同形，另加标定标记） */
+export interface WorkbenchSentence {
+  id: number;
+  text: string;
+  start: number;
+  end: number;
+  zh?: string;
+  /** 用户已手动标定时间 */
+  marked?: boolean;
+}
+
+/** 语料转写文稿 */
+export interface Transcript {
+  corpusId: string;
+  sentences: WorkbenchSentence[];
+  updatedAt: number;
+}
+
+/** 保存/更新转写文稿 */
+export async function saveTranscript(t: Transcript): Promise<void> {
+  const db = await getDB();
+  await db.put(STORE_TRANSCRIPTS, { ...t, updatedAt: Date.now() }, t.corpusId);
+}
+
+/** 读取转写文稿（不存在返回 undefined） */
+export async function getTranscript(corpusId: string): Promise<Transcript | undefined> {
+  const db = await getDB();
+  return (await db.get(STORE_TRANSCRIPTS, corpusId)) as Transcript | undefined;
+}
+
+/** 删除语料时连带删除文稿 */
+export async function deleteTranscript(corpusId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete(STORE_TRANSCRIPTS, corpusId);
 }
 
 /** 导出我的数据（JSON）：生词本、统计、进度、语料元信息（不含文件本体） */
