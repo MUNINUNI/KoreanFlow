@@ -154,6 +154,10 @@ export const userVocab = mysqlTable("user_vocab", {
   pos: varchar("pos", { length: 32 }).notNull().default(""),
   /** 来源：system=词库 / daily=每日一句 / corpus=语料中心 */
   source: varchar("source", { length: 32 }).notNull().default("system"),
+  /** 例句（韩语），语料中心/查词添加时自动带上出处句 */
+  exampleKo: varchar("example_ko", { length: 512 }).notNull().default(""),
+  /** 例句（中文） */
+  exampleZh: varchar("example_zh", { length: 512 }).notNull().default(""),
   mastered: boolean("mastered").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => ({

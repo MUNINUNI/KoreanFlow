@@ -8,7 +8,7 @@
  * 失败只记录日志、不阻断静态站点服务（前端自动降级为 localStorage 离线模式）。
  */
 import mysql from "mysql2/promise";
-import { MIGRATION_SQL } from "@db/migrations-embedded";
+import { MIGRATION_SQL, COLUMN_PATCHES } from "@db/migrations-embedded";
 import { env } from "./lib/env";
 
 export async function autoMigrateAndSeed(): Promise<void> {
@@ -20,6 +20,18 @@ export async function autoMigrateAndSeed(): Promise<void> {
       await pool.execute(stmt);
     }
     console.log("[autoboot] 数据库表结构就绪");
+
+    // 1.5 增量列补丁（旧部署补列，幂等）
+    for (const [table, column, sql] of COLUMN_PATCHES) {
+      const [cols] = await pool.execute(
+        "SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+        [table, column],
+      );
+      if (Number((cols as { cnt: number }[])[0]?.cnt ?? 0) === 0) {
+        await pool.execute(sql);
+        console.log(`[autoboot] 已补列 ${table}.${column}`);
+      }
+    }
 
     // 2. 系统语料库为空时灌入内置数据
     const [rows] = await pool.execute("SELECT COUNT(*) AS cnt FROM system_words");
