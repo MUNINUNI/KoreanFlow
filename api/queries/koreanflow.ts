@@ -117,12 +117,20 @@ export async function listUserVocab(userId: number) {
 /** 添加生词（重复则忽略） */
 export async function addUserVocab(
   userId: number,
-  entry: { ko: string; rom?: string; zh?: string; pos?: string; source?: string },
+  entry: { ko: string; rom?: string; zh?: string; pos?: string; source?: string; exampleKo?: string; exampleZh?: string },
 ) {
   await getDb()
     .insert(userVocab)
     .values({ userId, ...entry })
-    .onDuplicateKeyUpdate({ set: { zh: entry.zh ?? "", rom: entry.rom ?? "", pos: entry.pos ?? "" } });
+    .onDuplicateKeyUpdate({
+      set: {
+        zh: entry.zh ?? "",
+        rom: entry.rom ?? "",
+        pos: entry.pos ?? "",
+        exampleKo: entry.exampleKo ?? "",
+        exampleZh: entry.exampleZh ?? "",
+      },
+    });
 }
 
 export async function setVocabMastered(userId: number, ko: string, mastered: boolean) {

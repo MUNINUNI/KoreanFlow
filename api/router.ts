@@ -118,6 +118,8 @@ export const appRouter = createRouter({
         zh: z.string().max(255).optional(),
         pos: z.string().max(32).optional(),
         source: z.string().max(32).optional(),
+        exampleKo: z.string().max(512).optional(),
+        exampleZh: z.string().max(512).optional(),
       }))
       .mutation(async ({ input }) => {
         const user = await ensureUser(input.deviceId);
