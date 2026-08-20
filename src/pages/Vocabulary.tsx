@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Star, Trash2, Search, ChevronLeft, ChevronRight, Check, HelpCircle,
+  Star, Trash2, Search, ChevronLeft, ChevronRight, Check, HelpCircle, BookMarked,
   RotateCw, BookOpenText, Flame, Lightbulb,
 } from 'lucide-react';
 import WordCard from '@/components/WordCard';
@@ -16,6 +16,7 @@ import SpeakButton from '@/components/SpeakButton';
 import EmptyState from '@/components/EmptyState';
 import StatChip from '@/components/StatChip';
 import { showToast } from '@/components/Toast';
+import WordLookupModal from '@/components/WordLookupModal';
 import { speakKorean } from '@/lib/tts';
 import { STORAGE_KEYS, readStorage, writeStorage, removeStorage, getStats, updateStats } from '@/lib/storage';
 import { WORDS, CATEGORIES, type Word } from '@/data/words';
@@ -30,6 +31,8 @@ interface VocabEntry {
   rom: string;
   zh: string;
   pos: string;
+  exampleKo?: string; // 例句（韩语），语料/查词添加时带上出处句
+  exampleZh?: string; // 例句（中文）
   addedAt: number;   // 添加时间戳
   mastered: boolean; // 已掌握标记
 }
@@ -353,6 +356,7 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
   const [debounced, setDebounced] = useState(''); // 300ms 防抖后的过滤词
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false); // 查词面板
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /** 搜索防抖：输入 300ms 后再过滤 */
@@ -385,7 +389,7 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
           title="还没有生词"
           description="学习词卡时点 ☆ 收藏，或在每日一句里点收藏。"
         />
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-3">
           <button
             type="button"
             onClick={goLearn}
@@ -393,7 +397,18 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
           >
             去学习 →
           </button>
+          <button
+            type="button"
+            onClick={() => setLookupOpen(true)}
+            className="flex items-center gap-1.5 rounded-full border border-warm bg-paper px-5 py-2.5 text-sm text-ink-secondary shadow-card transition-colors hover:border-terracotta hover:text-terracotta"
+          >
+            <BookMarked size={15} /> 查词
+          </button>
         </div>
+        {/* 查词面板（空态也可用） */}
+        <AnimatePresence>
+          {lookupOpen && <WordLookupModal onClose={() => setLookupOpen(false)} />}
+        </AnimatePresence>
       </div>
     );
   }
@@ -420,6 +435,13 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
           <option value="date">按日期</option>
           <option value="mastered">按掌握度</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setLookupOpen(true)}
+          className="flex items-center gap-1.5 rounded-full border border-warm bg-paper px-4 py-2 text-sm text-ink-secondary shadow-card transition-colors hover:border-terracotta hover:text-terracotta"
+        >
+          <BookMarked size={15} /> 查词
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -477,7 +499,14 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
                 )}
               </span>
               <span className="font-kr text-xl text-ink">{e.ko}</span>
-              <span className="text-sm text-ink-secondary">{e.zh}</span>
+              <span className="min-w-0 text-sm text-ink-secondary">
+                {e.zh}
+                {e.exampleKo && (
+                  <span className="mt-0.5 block truncate text-xs text-ink-muted" title={e.exampleKo}>
+                    例句：{e.exampleKo}
+                  </span>
+                )}
+              </span>
               <span className="ml-auto text-xs text-ink-muted">
                 {new Date(e.addedAt).toLocaleDateString('zh-CN')}
               </span>
@@ -559,6 +588,11 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* 查词面板（本地释义 + 在线三词典 + 拼读 + 加入生词本） */}
+      <AnimatePresence>
+        {lookupOpen && <WordLookupModal onClose={() => setLookupOpen(false)} />}
       </AnimatePresence>
     </section>
   );
