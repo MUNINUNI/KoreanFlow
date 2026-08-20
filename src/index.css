@@ -61,7 +61,12 @@
   }
   html {
     scroll-behavior: smooth;
-    /* 弹性适配基座：任何子元素溢出都不允许撑出横向滚动条 */
+    /* 鸿蒙/旧版 WebView 兼容：禁止浏览器擅自放大文字导致布局宽度错乱 */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* 弹性适配基座：任何子元素溢出都不允许撑出横向滚动条
+       （hidden 为旧内核回退，clip 为现代浏览器更优解——后者覆盖前者） */
+    overflow-x: hidden;
     overflow-x: clip;
   }
   body {
@@ -69,6 +74,7 @@
     /* 纸感背景：全局米白底 + 极轻点纹 */
     background-image: url('/daily-texture.svg');
     line-height: 1.8;
+    overflow-x: hidden;
     overflow-x: clip;
   }
   /* 媒体元素永远不超出容器宽度 */
@@ -93,5 +99,30 @@
   /* 韩语内容使用韩语衬线字体 */
   .font-kr {
     font-family: 'Noto Serif KR', 'Noto Serif SC', serif;
+  }
+}
+
+@layer utilities {
+  /* ---- 鸿蒙/旧版 WebView 兼容工具类（dvh/env 不识别时自动回退） ---- */
+  /* 视口高度：100vh 兜底，支持 dvh 的设备用后者（移动浏览器地址栏伸缩更稳） */
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  /* 首页桌面端满高布局（减去 64px 导航）：vh 兜底 dvh */
+  .h-fill-minus-nav {
+    height: auto;
+  }
+  /* 底部安全区（iOS 横条/鸿蒙手势条）：不支持 env() 时回退 0 */
+  .pb-safe {
+    padding-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .h-fill-minus-nav {
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
   }
 }

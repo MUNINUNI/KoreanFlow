@@ -40,7 +40,7 @@ export default function Layout() {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="flex min-h-screen-safe flex-col">
       <Navbar />
       {/* 页面容器：移动端底部预留 Tab Bar 高度（64px + safe-area） */}
       <main className="flex-1 pb-24 lg:pb-0">
@@ -50,8 +50,7 @@ export default function Layout() {
       {/* 移动端底部 Tab Bar（safe-area 适配） */}
       <nav
         aria-label="底部导航"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-warm bg-paper/95 backdrop-blur lg:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="pb-safe fixed inset-x-0 bottom-0 z-50 border-t border-warm bg-paper/95 backdrop-blur lg:hidden"
       >
         <div className="flex h-16 items-stretch">
           {TAB_ITEMS.map((item) => (
