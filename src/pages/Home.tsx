@@ -402,7 +402,7 @@ export default function Home() {
       {showSplash && <SplashScreen onDone={dismissSplash} />}
 
       {/* 主界面：每日一句（约 30%）+ 今日学习概览（约 70%），移动端自然堆叠 */}
-      <div className="mx-auto grid max-w-content gap-10 px-4 py-8 md:px-6 lg:h-[calc(100dvh-64px)] lg:grid-rows-[3fr_7fr] lg:gap-6 lg:py-6">
+      <div className="h-fill-minus-nav mx-auto grid max-w-content gap-10 px-4 py-8 md:px-6 lg:grid-rows-[3fr_7fr] lg:gap-6 lg:py-6">
         {/* 上：每日一句卡片（含装饰字符） */}
         <section className="relative flex min-h-0 items-center">
           <motion.div
