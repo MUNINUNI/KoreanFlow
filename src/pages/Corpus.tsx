@@ -11,6 +11,7 @@ import {
   Trash2, Pencil, ArrowLeft, Play, Pause, SkipBack, SkipForward, Volume2,
   Package, Download, Eraser, Star, X, ChevronLeft, ChevronRight,
   ALargeSmall, Rows3, BookOpenText, Repeat, Zap, BookPlus, Mic, Check, Loader2,
+  SpellCheck, BookOpen, AudioLines,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import WaveSurfer from 'wavesurfer.js';
@@ -29,10 +30,14 @@ import { lookupWord, containsHangul, normalizeQuery } from '@/lib/dictionary';
 import { DICTIONARY } from '@/data/dictionary';
 import type { DictEntry } from '@/data/dictionary';
 import { syncVocabAdd, syncCorpusAdd, syncCorpusRemove } from '@/lib/sync';
+import { addToVocabBook } from '@/lib/vocab';
+import { spellSpeechText, decomposeWord } from '@/lib/spell';
+import SentenceWorkbench from '@/components/SentenceWorkbench';
+import WordLookupModal from '@/components/WordLookupModal';
 import {
   type CorpusMeta, type CorpusKind, genId, detectKind, saveCorpusFile, getCorpusBlob,
   listCorpusMeta, updateCorpusMeta, deleteCorpus, clearCorpus, estimateUsage,
-  formatBytes, formatTime, probeDuration, computePeaks, exportMyData,
+  formatBytes, formatTime, probeDuration, computePeaks, exportMyData, isDocxMeta,
 } from '@/lib/corpus';
 
 // pdf.js worker 配置（Vite ?url 方式打包 worker）
@@ -57,15 +62,6 @@ interface VocabEntry {
   pos: string;
   addedAt: number;
   mastered: boolean;
-}
-
-/** 将词条加入生词本（去重），返回是否新增成功；新增时静默同步云端 */
-function addToVocabBook(entry: Omit<VocabEntry, 'id' | 'addedAt' | 'mastered'>): boolean {
-  const list = readStorage<VocabEntry[]>(STORAGE_KEYS.VOCAB_BOOK, []);
-  if (list.some((v) => v.ko === entry.ko)) return false;
-  writeStorage(STORAGE_KEYS.VOCAB_BOOK, [...list, { ...entry, id: genId(), addedAt: Date.now(), mastered: false }]);
-  syncVocabAdd({ ko: entry.ko, rom: entry.rom, zh: entry.zh, pos: entry.pos, source: 'corpus' });
-  return true;
 }
 
 /** 发音练习自定义材料（`hjy:pron-custom`，与 Pronunciation 页「我的材料」共用） */
@@ -546,8 +542,17 @@ export default function Corpus() {
             await doc.destroy();
           } catch { /* 损坏的 PDF 仍允许保存 */ }
         } else if (kind === 'text') {
-          const text = await file.text();
-          meta.wordCount = text.replace(/\s/g, '').length;
+          if (isDocxMeta({ name: file.name, mime: file.type })) {
+            // DOCX：mammoth 提取纯文本统计字数
+            try {
+              const mammoth = await import('mammoth');
+              const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+              meta.wordCount = result.value.replace(/\s/g, '').length;
+            } catch { /* 损坏文件仍允许保存 */ }
+          } else {
+            const text = await file.text();
+            meta.wordCount = text.replace(/\s/g, '').length;
+          }
         }
         await saveCorpusFile(id, file, meta);
         // 语料元数据静默同步云端（fire-and-forget，离线时静默失败）
@@ -641,10 +646,10 @@ export default function Corpus() {
             <CloudUpload size={48} className="text-ink-muted" />
           </motion.div>
           <p className="text-base font-medium text-ink">拖文件到这里，或 <span className="text-terracotta underline underline-offset-4">点击选择</span></p>
-          <p className="text-xs text-ink-muted">音频 mp3/wav/m4a · 视频 mp4/webm · 文档 pdf/txt/md · 单文件 ≤ 200MB</p>
+          <p className="text-xs text-ink-muted">音频 mp3/wav/m4a（可识别文稿逐句学习）· 视频 mp4/webm · 文档 pdf/txt/md/docx · 单文件 ≤ 200MB</p>
           <input
             ref={fileInputRef} type="file" multiple className="hidden"
-            accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.webm,.pdf,.txt,.md"
+            accept="audio/*,video/*,.mp3,.m4a,.wav,.mp4,.webm,.pdf,.txt,.md,.docx"
             onChange={(e) => { if (e.target.files) void handleFiles(e.target.files); e.target.value = ''; }}
           />
         </motion.div>
@@ -913,6 +918,7 @@ export default function Corpus() {
 function Workbench({ meta, onBack }: { meta: CorpusMeta; onBack: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [audioTab, setAudioTab] = useState<'sentence' | 'wave'>('sentence'); // 音频工作台：逐句学习 / 波形精听
   const km = KIND_META[meta.kind];
 
   // 加载 Blob → ObjectURL
@@ -956,7 +962,28 @@ function Workbench({ meta, onBack }: { meta: CorpusMeta; onBack: () => void }) {
       {!url && !error && (
         <div className="rounded-3xl border border-warm bg-paper p-10 text-center text-sm text-ink-muted shadow-card">正在载入…</div>
       )}
-      {url && meta.kind === 'audio' && <AudioPlayer meta={meta} url={url} />}
+      {url && meta.kind === 'audio' && (
+        <div className="space-y-4">
+          {/* 模式切换：逐句学习（转写文稿）/ 波形精听（A-B 循环） */}
+          <div className="flex w-fit gap-1 rounded-full border border-warm bg-paper p-1">
+            {([['sentence', '逐句学习', AudioLines], ['wave', '波形精听', Repeat]] as const).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                onClick={() => setAudioTab(key)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                  audioTab === key ? 'bg-terracotta text-white' : 'text-ink-secondary hover:text-terracotta',
+                )}
+              >
+                <Icon size={14} /> {label}
+              </button>
+            ))}
+          </div>
+          {audioTab === 'sentence'
+            ? <SentenceWorkbench meta={meta} url={url} />
+            : <AudioPlayer meta={meta} url={url} />}
+        </div>
+      )}
       {url && meta.kind === 'video' && <VideoPlayer meta={meta} url={url} />}
       {url && (meta.kind === 'pdf' || meta.kind === 'text') && <Reader meta={meta} url={url} />}
     </div>
@@ -1387,6 +1414,7 @@ function Reader({ meta, url }: { meta: CorpusMeta; url: string }) {
   const [pages, setPages] = useState<string[] | null>(null);
   const [pageIdx, setPageIdx] = useState(0);
   const [bubble, setBubble] = useState<BubbleState | null>(null);
+  const [lookup, setLookup] = useState<{ word: string; exampleKo?: string } | null>(null); // 查词典面板
   const [fontSize, setFontSize] = useState(18);
   const [loose, setLoose] = useState(true); // 行距：true=2.0 false=1.8
   const [reading, setReading] = useState(false);
@@ -1412,6 +1440,12 @@ function Reader({ meta, url }: { meta: CorpusMeta; url: string }) {
           }
           await doc.destroy();
           if (!cancelled) setPages(result);
+        } else if (isDocxMeta(meta)) {
+          // DOCX：mammoth 提取正文后按空行分页
+          const res = await fetch(url);
+          const mammoth = await import('mammoth');
+          const result = await mammoth.extractRawText({ arrayBuffer: await res.arrayBuffer() });
+          if (!cancelled) setPages(paginateText(result.value || '（文档为空）'));
         } else {
           const res = await fetch(url);
           const text = await res.text();
@@ -1615,7 +1649,7 @@ function Reader({ meta, url }: { meta: CorpusMeta; url: string }) {
               </div>
             )}
             {/* 操作行：加入生词本 / 加入单词学习 / 加入发音练习（点击不关闭气泡） */}
-            <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-warm pt-3">
+            <div className="mt-3 grid grid-cols-5 gap-1.5 border-t border-warm pt-3">
               <BubbleAction
                 icon={<Star size={13} />}
                 label="加入生词本"
@@ -1628,8 +1662,9 @@ function Reader({ meta, url }: { meta: CorpusMeta; url: string }) {
                     rom: bubble.entry?.rom ?? '',
                     zh: bubble.entry?.zh ?? '（本地词典未收录）',
                     pos: bubble.entry?.pos ?? `语料·${meta.name}`,
+                    exampleKo: bubble.sentence || undefined,
                   });
-                  showToast(added ? '已加入生词本' : '生词本中已有该词');
+                  showToast(added ? '已加入生词本（含例句）' : '生词本中已有该词');
                   setBubble((b) => (b ? { ...b, inVocab: true } : b));
                 }}
               />
@@ -1646,6 +1681,7 @@ function Reader({ meta, url }: { meta: CorpusMeta; url: string }) {
                     // 词典未收录时释义留空，待用户在学习页补全
                     zh: bubble.entry?.zh ?? '',
                     pos: bubble.entry?.pos ?? `语料·${meta.name}`,
+                    exampleKo: bubble.sentence || undefined,
                   });
                   showToast(added ? '已加入单词学习' : '单词学习库中已有该词');
                   setBubble((b) => (b ? { ...b, inVocab: true } : b));
@@ -1663,8 +1699,40 @@ function Reader({ meta, url }: { meta: CorpusMeta; url: string }) {
                   setBubble((b) => (b ? { ...b, inPron: true } : b));
                 }}
               />
+              <BubbleAction
+                icon={<SpellCheck size={13} />}
+                label="拼读"
+                shortLabel="拼读"
+                doneLabel="拼读"
+                done={false}
+                onClick={() => {
+                  const word = bubble.entry?.ko ?? bubble.text;
+                  const speech = spellSpeechText(word);
+                  if (speech && !speakKorean(speech, { rate: 0.7 })) showToast('当前浏览器不支持语音合成');
+                  else if (speech) showToast(`拼读：${decomposeWord(word).map((g) => g.join('')).join(' · ')}`);
+                }}
+              />
+              <BubbleAction
+                icon={<BookOpen size={13} />}
+                label="查词典"
+                shortLabel="词典"
+                doneLabel="词典"
+                done={false}
+                onClick={() => {
+                  const word = bubble.entry?.ko ?? bubble.text;
+                  setLookup({ word, exampleKo: bubble.sentence || undefined });
+                  setBubble(null);
+                }}
+              />
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 查词典面板（本地释义 + 三个在线韩中词典 + 拼读 + 加入生词本） */}
+      <AnimatePresence>
+        {lookup && (
+          <WordLookupModal initialWord={lookup.word} exampleKo={lookup.exampleKo} onClose={() => setLookup(null)} />
         )}
       </AnimatePresence>
     </motion.div>
