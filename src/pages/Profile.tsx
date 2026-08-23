@@ -20,7 +20,6 @@ import {
   BookOpen,
   Check,
   Flame,
-  Link2,
   MessageSquare,
   Minus,
   Package,
@@ -36,6 +35,8 @@ import { getStudyTime } from '@/lib/studyTime';
 import { isTtsSupported, previewVoice, stopSpeaking } from '@/lib/tts';
 import type { VoiceGender } from '@/lib/tts';
 import { syncEnsureUser, syncPrefs } from '@/lib/sync';
+import { useAuth } from '@/lib/auth';
+import AccountSection from '@/components/AccountSection';
 import { clearCorpus, listCorpusMeta } from '@/lib/corpus';
 import { showToast } from '@/components/Toast';
 import { cn } from '@/lib/utils';
@@ -391,6 +392,7 @@ function StatCard({ card, index }: { card: StatCardDef; index: number }) {
 /* ---------------- 主页面 ---------------- */
 export default function Profile() {
   /* ---- 本地数据（本地优先，云端仅校准显示） ---- */
+  const { user: authUser } = useAuth();
   const [stats] = useState(() => getStats());
   const [study] = useState(() => getStudyTime());
   const [rawStats, setRawStats] = useState<RawStats>(() => readStorage<RawStats>(STORAGE_KEYS.STATS, {} as RawStats));
@@ -621,14 +623,16 @@ export default function Profile() {
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              <h2 className="text-xl font-semibold text-ink">韩语学习者</h2>
+              <h2 className="text-xl font-semibold text-ink">{authUser?.nickname ?? '韩语学习者'}</h2>
               {/* 会员徽章：视觉位为将来 Pro 付费等级预留 */}
               <span className="inline-flex items-center gap-1 rounded-full border border-honey px-2.5 py-0.5 text-xs font-medium text-honey">
                 <Sprout size={12} />
-                免费版
+                {authUser?.plan === 'pro' ? 'Pro 会员' : '免费版'}
               </span>
             </div>
-            <p className="mt-1 text-sm text-ink-muted">离线优先 · 数据保存在本机浏览器</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {authUser ? '已登录 · 数据云端同步' : '离线优先 · 数据保存在本机浏览器'}
+            </p>
           </div>
           {/* 学习时长摘要（全新用户隐藏） */}
           {!allZero && (
@@ -639,23 +643,10 @@ export default function Profile() {
         </div>
       </motion.section>
 
-      {/* 登录提示横幅 */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: EASE, delay: 0.2 }}
-        className="mt-4 flex items-center gap-3 rounded-2xl bg-sand px-4 py-3 md:px-5"
-      >
-        <Link2 size={18} className="shrink-0 text-ink-secondary" aria-hidden />
-        <p className="min-w-0 flex-1 text-sm text-ink-secondary">登录后可同步多设备数据，学习记录不丢失</p>
-        <button
-          type="button"
-          onClick={() => showToast('账号系统正在筹备中，敬请期待')}
-          className="shrink-0 cursor-not-allowed rounded-full border border-warm px-4 py-1.5 text-sm text-ink-muted"
-        >
-          即将上线
-        </button>
-      </motion.div>
+      {/* 账号与通知（v2.3.0）：未登录显示引导卡，已登录显示账号管理 */}
+      <div className="mt-4">
+        <AccountSection />
+      </div>
 
       {/* ========== Section 2：学习数据 ========== */}
       <section className="mt-12 md:mt-16">
