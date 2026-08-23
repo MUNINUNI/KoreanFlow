@@ -17,7 +17,13 @@ export async function autoMigrateAndSeed(): Promise<void> {
   try {
     // 1. 建表（幂等）
     for (const stmt of MIGRATION_SQL) {
-      await pool.execute(stmt);
+      try {
+        await pool.execute(stmt);
+      } catch (e) {
+        // 索引已存在（1061）属重复启动的正常情况，跳过即可；其余错误照样抛出
+        if ((e as { errno?: number })?.errno === 1061) continue;
+        throw e;
+      }
     }
     console.log("[autoboot] 数据库表结构就绪");
 
