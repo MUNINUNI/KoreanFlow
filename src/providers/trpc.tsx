@@ -13,6 +13,15 @@ const trpcClient = trpc.createClient({
     httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
+      headers() {
+        // v2.3.0：已登录请求携带 Bearer 令牌
+        try {
+          const token = window.localStorage.getItem("hjy:auth-token");
+          return token ? { Authorization: `Bearer ${token}` } : {};
+        } catch {
+          return {};
+        }
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

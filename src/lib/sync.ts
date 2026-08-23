@@ -9,6 +9,23 @@ import type { AppRouter } from '../../api/router';
 
 /** localStorage 设备 ID 键名 */
 const DEVICE_ID_KEY = 'hjy:device-id';
+/** localStorage 登录令牌键名（v2.3.0 账号系统） */
+export const AUTH_TOKEN_KEY = 'hjy:auth-token';
+
+/** 读取登录令牌（未登录返回 null） */
+export function getAuthToken(): string | null {
+  try {
+    return window.localStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** tRPC 请求头：已登录时携带 Bearer 令牌 */
+function authHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 /** 获取（或首次生成）设备 ID：未登录阶段的身份键 */
 export function getDeviceId(): string {
@@ -26,11 +43,14 @@ export function getDeviceId(): string {
 }
 
 /** 非 React 环境的 vanilla tRPC client（与 providers/trpc.tsx 同一后端地址） */
-const client = createTRPCClient<AppRouter>({
+export const client = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
       url: '/api/trpc',
       transformer: superjson,
+      headers() {
+        return authHeaders();
+      },
       fetch(input, init) {
         return globalThis.fetch(input, { ...(init ?? {}), credentials: 'include' });
       },

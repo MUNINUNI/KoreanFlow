@@ -10,6 +10,7 @@ import Pronunciation from './pages/Pronunciation';
 import Corpus from './pages/Corpus';
 import Review from './pages/Review';
 import Profile from './pages/Profile';
+import Auth from './pages/Auth';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="corpus" element={<Corpus />} />
         <Route path="review" element={<Review />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="auth" element={<Auth />} />
       </Route>
     </Routes>
   );

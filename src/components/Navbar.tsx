@@ -8,6 +8,7 @@ import { Link, NavLink } from 'react-router';
 import { motion } from 'framer-motion';
 import { Flame, CircleUserRound } from 'lucide-react';
 import { getStats } from '@/lib/storage';
+import NotificationBell from '@/components/NotificationBell';
 import { cn } from '@/lib/utils';
 
 /** 全站路由导航项（与 App.tsx 路由保持一致） */
@@ -79,6 +80,7 @@ export default function Navbar() {
             <Flame size={16} />
             <span>{streak} 天</span>
           </div>
+          <NotificationBell />
           <Link
             to="/profile"
             aria-label="我的"
