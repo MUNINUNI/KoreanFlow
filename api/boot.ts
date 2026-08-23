@@ -29,6 +29,14 @@ if (env.isProduction) {
   // 首启自动建表 + 灌入系统语料（幂等，后台执行不阻塞启动；失败前端自动离线降级）
   void autoMigrateAndSeed();
 
+  // 每日学习提醒调度：每 5 分钟检查一次到点用户（站内通知 + 邮件发件箱，v2.3.0）
+  setInterval(() => {
+    void import("./queries/auth")
+      .then((m) => m.dispatchDueReminders())
+      .then((n) => { if (n > 0) console.log(`[remind] 已发送 ${n} 条学习提醒`); })
+      .catch(() => { /* 数据库不可达时静默 */ });
+  }, 5 * 60 * 1000);
+
   serveStaticFiles(app);
 
   const port = parseInt(process.env.PORT || "3000");

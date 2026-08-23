@@ -37,11 +37,89 @@ export const users = mysqlTable("users", {
   nickname: varchar("nickname", { length: 64 }).notNull().default("韩语学习者"),
   /** 会员等级：为付费服务预留 */
   plan: mysqlEnum("plan", ["free", "pro"]).notNull().default("free"),
+  /* ---- v2.3.0 账号系统 ---- */
+  /** 绑定邮箱（可空，唯一） */
+  email: varchar("email", { length: 191 }),
+  /** 绑定手机号（可空，唯一） */
+  phone: varchar("phone", { length: 32 }),
+  /** scrypt 密码哈希，格式 salt:hash（hex） */
+  passwordHash: varchar("password_hash", { length: 255 }),
+  emailVerifiedAt: timestamp("email_verified_at"),
+  phoneVerifiedAt: timestamp("phone_verified_at"),
+  /** 学习通知开关：邮件 / 浏览器站内通知 */
+  notifyEmail: boolean("notify_email").notNull().default(true),
+  notifyBrowser: boolean("notify_browser").notNull().default(true),
+  /** 每日提醒时间 HH:mm（服务器本地时区） */
+  remindTime: varchar("remind_time", { length: 5 }).notNull().default("20:00"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastActiveAt: timestamp("last_active_at").notNull().defaultNow(),
 }, (t) => ({
   deviceIdx: uniqueIndex("users_device_idx").on(t.deviceId),
   openidIdx: uniqueIndex("users_openid_idx").on(t.openid),
+  emailIdx: uniqueIndex("users_email_idx").on(t.email),
+  phoneIdx: uniqueIndex("users_phone_idx").on(t.phone),
+}));
+
+/* ---------------- 验证码（v2.3.0） ---------------- */
+
+export const authCodes = mysqlTable("auth_codes", {
+  id: serial("id").primaryKey(),
+  /** 通道：邮箱 / 手机号 */
+  channel: mysqlEnum("channel", ["email", "phone"]).notNull(),
+  /** 目标地址：邮箱地址或手机号 */
+  target: varchar("target", { length: 191 }).notNull(),
+  code: varchar("code", { length: 8 }).notNull(),
+  /** 用途：注册 / 登录 / 绑定 / 重置密码 */
+  purpose: mysqlEnum("purpose", ["register", "login", "bind", "reset"]).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  targetIdx: index("auth_codes_target_idx").on(t.channel, t.target),
+}));
+
+/* ---------------- 登录会话（v2.3.0） ---------------- */
+
+export const authSessions = mysqlTable("auth_sessions", {
+  id: serial("id").primaryKey(),
+  /** 64 位 hex 令牌，前端存 localStorage，请求带 Authorization: Bearer */
+  token: varchar("token", { length: 64 }).notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  tokenIdx: uniqueIndex("auth_sessions_token_idx").on(t.token),
+  userIdx: index("auth_sessions_user_idx").on(t.userId),
+}));
+
+/* ---------------- 站内通知（v2.3.0） ---------------- */
+
+export const notifications = mysqlTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull(),
+  title: varchar("title", { length: 128 }).notNull(),
+  body: varchar("body", { length: 512 }).notNull().default(""),
+  /** reminder=学习提醒 / system=系统通知 */
+  type: varchar("type", { length: 32 }).notNull().default("reminder"),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  userIdx: index("notifications_user_idx").on(t.userId),
+}));
+
+/* ---------------- 邮件发件箱（v2.3.0，开发模式先落库） ---------------- */
+
+export const emailOutbox = mysqlTable("email_outbox", {
+  id: serial("id").primaryKey(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }),
+  toAddr: varchar("to_addr", { length: 191 }).notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body"),
+  /** pending=待发送（开发模式永远 pending，接入 SMTP 后由发信任务置 sent） */
+  status: mysqlEnum("status", ["pending", "sent", "failed"]).notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  statusIdx: index("email_outbox_status_idx").on(t.status),
 }));
 
 /* ---------------- 学习偏好（1:1） ---------------- */
@@ -192,3 +270,7 @@ export type SystemWord = typeof systemWords.$inferSelect;
 export type SystemSentence = typeof systemSentences.$inferSelect;
 export type UserVocab = typeof userVocab.$inferSelect;
 export type UserCorpus = typeof userCorpus.$inferSelect;
+export type AuthCode = typeof authCodes.$inferSelect;
+export type AuthSession = typeof authSessions.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type EmailOutbox = typeof emailOutbox.$inferSelect;

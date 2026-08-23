@@ -14,10 +14,20 @@ export const MIGRATION_SQL: string[] = [
   "CREATE TABLE IF NOT EXISTS `system_words` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`word_key` varchar(64) NOT NULL,\n\t`ko` varchar(128) NOT NULL,\n\t`rom` varchar(255) NOT NULL DEFAULT '',\n\t`zh` varchar(255) NOT NULL,\n\t`pos` varchar(32) NOT NULL DEFAULT '',\n\t`example_ko` text,\n\t`example_zh` text,\n\t`category` varchar(32) NOT NULL DEFAULT '',\n\t`source` varchar(32) NOT NULL DEFAULT 'builtin',\n\tCONSTRAINT `system_words_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `syswords_key_idx` UNIQUE(`word_key`)\n);",
   "CREATE TABLE IF NOT EXISTS `user_corpus` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`user_id` bigint unsigned NOT NULL,\n\t`title` varchar(255) NOT NULL,\n\t`kind` enum('audio','video','pdf','text') NOT NULL,\n\t`size_bytes` int NOT NULL DEFAULT 0,\n\t`duration_seconds` int NOT NULL DEFAULT 0,\n\t`local_key` varchar(128) NOT NULL DEFAULT '',\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `user_corpus_id` PRIMARY KEY(`id`)\n);",
   "CREATE TABLE IF NOT EXISTS `user_vocab` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`user_id` bigint unsigned NOT NULL,\n\t`ko` varchar(128) NOT NULL,\n\t`rom` varchar(255) NOT NULL DEFAULT '',\n\t`zh` varchar(255) NOT NULL DEFAULT '',\n\t`pos` varchar(32) NOT NULL DEFAULT '',\n\t`source` varchar(32) NOT NULL DEFAULT 'system',\n\t`example_ko` varchar(512) NOT NULL DEFAULT '',\n\t`example_zh` varchar(512) NOT NULL DEFAULT '',\n\t`mastered` boolean NOT NULL DEFAULT false,\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `user_vocab_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `vocab_user_ko_idx` UNIQUE(`user_id`,`ko`)\n);",
-  "CREATE TABLE IF NOT EXISTS `users` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`device_id` varchar(64) NOT NULL,\n\t`openid` varchar(128),\n\t`nickname` varchar(64) NOT NULL DEFAULT '韩语学习者',\n\t`plan` enum('free','pro') NOT NULL DEFAULT 'free',\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\t`last_active_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `users_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `users_device_idx` UNIQUE(`device_id`),\n\tCONSTRAINT `users_openid_idx` UNIQUE(`openid`)\n);",
+  "CREATE TABLE IF NOT EXISTS `users` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`device_id` varchar(64) NOT NULL,\n\t`openid` varchar(128),\n\t`nickname` varchar(64) NOT NULL DEFAULT '韩语学习者',\n\t`plan` enum('free','pro') NOT NULL DEFAULT 'free',\n\t`email` varchar(191),\n\t`phone` varchar(32),\n\t`password_hash` varchar(255),\n\t`email_verified_at` timestamp NULL,\n\t`phone_verified_at` timestamp NULL,\n\t`notify_email` boolean NOT NULL DEFAULT true,\n\t`notify_browser` boolean NOT NULL DEFAULT true,\n\t`remind_time` varchar(5) NOT NULL DEFAULT '20:00',\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\t`last_active_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `users_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `users_device_idx` UNIQUE(`device_id`),\n\tCONSTRAINT `users_openid_idx` UNIQUE(`openid`),\n\tCONSTRAINT `users_email_idx` UNIQUE(`email`),\n\tCONSTRAINT `users_phone_idx` UNIQUE(`phone`)\n);",
+  "CREATE TABLE IF NOT EXISTS `auth_codes` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`channel` enum('email','phone') NOT NULL,\n\t`target` varchar(191) NOT NULL,\n\t`code` varchar(8) NOT NULL,\n\t`purpose` enum('register','login','bind','reset') NOT NULL,\n\t`expires_at` timestamp NOT NULL,\n\t`used` boolean NOT NULL DEFAULT false,\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `auth_codes_id` PRIMARY KEY(`id`)\n);",
+  "CREATE TABLE IF NOT EXISTS `auth_sessions` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`token` varchar(64) NOT NULL,\n\t`user_id` bigint unsigned NOT NULL,\n\t`expires_at` timestamp NOT NULL,\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `auth_sessions_id` PRIMARY KEY(`id`),\n\tCONSTRAINT `auth_sessions_token_idx` UNIQUE(`token`)\n);",
+  "CREATE TABLE IF NOT EXISTS `notifications` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`user_id` bigint unsigned NOT NULL,\n\t`title` varchar(128) NOT NULL,\n\t`body` varchar(512) NOT NULL DEFAULT '',\n\t`type` varchar(32) NOT NULL DEFAULT 'reminder',\n\t`read_at` timestamp NULL,\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `notifications_id` PRIMARY KEY(`id`)\n);",
+  "CREATE TABLE IF NOT EXISTS `email_outbox` (\n\t`id` bigint unsigned NOT NULL AUTO_INCREMENT,\n\t`user_id` bigint unsigned,\n\t`to_addr` varchar(191) NOT NULL,\n\t`subject` varchar(255) NOT NULL,\n\t`body` text,\n\t`status` enum('pending','sent','failed') NOT NULL DEFAULT 'pending',\n\t`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n\tCONSTRAINT `email_outbox_id` PRIMARY KEY(`id`)\n);",
   "CREATE INDEX `review_user_item_idx` ON `review_records` (`user_id`,`item_type`,`item_key`);",
   "CREATE INDEX `sessions_user_idx` ON `study_sessions` (`user_id`);",
-  "CREATE INDEX `corpus_user_idx` ON `user_corpus` (`user_id`);"
+  "CREATE INDEX `corpus_user_idx` ON `user_corpus` (`user_id`);",
+  "CREATE INDEX `auth_codes_target_idx` ON `auth_codes` (`channel`,`target`);",
+  "CREATE INDEX `auth_sessions_user_idx` ON `auth_sessions` (`user_id`);",
+  "CREATE INDEX `notifications_user_idx` ON `notifications` (`user_id`);",
+  "CREATE INDEX `email_outbox_status_idx` ON `email_outbox` (`status`);",
+  "CREATE UNIQUE INDEX `users_email_idx` ON `users` (`email`);",
+  "CREATE UNIQUE INDEX `users_phone_idx` ON `users` (`phone`);"
 ];
 
 /**
@@ -27,4 +37,13 @@ export const MIGRATION_SQL: string[] = [
 export const COLUMN_PATCHES: [string, string, string][] = [
   ["user_vocab", "example_ko", "ALTER TABLE `user_vocab` ADD COLUMN `example_ko` varchar(512) NOT NULL DEFAULT ''"],
   ["user_vocab", "example_zh", "ALTER TABLE `user_vocab` ADD COLUMN `example_zh` varchar(512) NOT NULL DEFAULT ''"],
+  // v2.3.0 账号系统：users 表补列
+  ["users", "email", "ALTER TABLE `users` ADD COLUMN `email` varchar(191)"],
+  ["users", "phone", "ALTER TABLE `users` ADD COLUMN `phone` varchar(32)"],
+  ["users", "password_hash", "ALTER TABLE `users` ADD COLUMN `password_hash` varchar(255)"],
+  ["users", "email_verified_at", "ALTER TABLE `users` ADD COLUMN `email_verified_at` timestamp NULL"],
+  ["users", "phone_verified_at", "ALTER TABLE `users` ADD COLUMN `phone_verified_at` timestamp NULL"],
+  ["users", "notify_email", "ALTER TABLE `users` ADD COLUMN `notify_email` boolean NOT NULL DEFAULT true"],
+  ["users", "notify_browser", "ALTER TABLE `users` ADD COLUMN `notify_browser` boolean NOT NULL DEFAULT true"],
+  ["users", "remind_time", "ALTER TABLE `users` ADD COLUMN `remind_time` varchar(5) NOT NULL DEFAULT '20:00'"],
 ];
