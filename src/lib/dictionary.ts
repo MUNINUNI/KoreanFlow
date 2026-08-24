@@ -1,7 +1,7 @@
 /**
  * dictionary.ts — 本地韩语词典查词逻辑
  * 用途：语料中心「划词翻译」气泡的离线查词入口。
- * 支持：精确匹配 → 剥离常见助词/词尾后重查 → 空白/标点清洗。
+ * 支持：精确匹配 → 剥离常见助词/词尾后重查 → 空白/标点清洗；中文反查（韩中互查）。
  */
 import type { DictEntry } from '@/data/dictionary';
 import { DICTIONARY } from '@/data/dictionary';
@@ -49,4 +49,23 @@ export function lookupWord(raw: string): DictEntry | null {
 /** 是否包含韩文字符（用于判断是否值得弹气泡） */
 export function containsHangul(text: string): boolean {
   return /[가-힯ㄱ-ㅎㅏ-ㅣ]/.test(text);
+}
+
+/**
+ * 中文反向查词（中 → 韩）：在词典中文释义中做包含匹配。
+ * 用于查词面板的「韩中互查」——输入中文时返回可能的韩语词条候选。
+ * @returns 按相关度（释义短者优先）排序的候选列表，最多 8 条
+ */
+export function lookupChinese(raw: string): DictEntry[] {
+  const q = normalizeQuery(raw);
+  if (!q || containsHangul(q)) return [];
+  const hits = DICTIONARY.filter((e) => e.zh.includes(q));
+  return hits
+    .sort((a, b) => {
+      // 完全等于释义某个义项（按 / 分隔）的优先
+      const aExact = a.zh.split(/[\/，、]/).some((p) => p.trim() === q) ? 0 : 1;
+      const bExact = b.zh.split(/[\/，、]/).some((p) => p.trim() === q) ? 0 : 1;
+      return aExact - bExact || a.zh.length - b.zh.length;
+    })
+    .slice(0, 8);
 }
