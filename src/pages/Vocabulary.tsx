@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Star, Trash2, Search, ChevronLeft, ChevronRight, Check, HelpCircle, BookMarked,
-  RotateCw, BookOpenText, Flame, Lightbulb,
+  RotateCw, BookOpenText, Flame, Lightbulb, FolderOpen, Loader2,
 } from 'lucide-react';
 import WordCard from '@/components/WordCard';
 import SpeakButton from '@/components/SpeakButton';
@@ -20,6 +20,9 @@ import WordLookupModal from '@/components/WordLookupModal';
 import { speakKorean } from '@/lib/tts';
 import { STORAGE_KEYS, readStorage, writeStorage, removeStorage, getStats, updateStats } from '@/lib/storage';
 import { WORDS, CATEGORIES, type Word } from '@/data/words';
+import { addToVocabBook } from '@/lib/vocab';
+import { getCorpusWords, corpusWordToWord, CORPUS_CATEGORY, type CorpusWord } from '@/lib/corpusWords';
+import { Link } from 'react-router';
 import { cn } from '@/lib/utils';
 
 // ---------- 存储类型与键 ----------
@@ -64,6 +67,7 @@ const MODES = [
   { id: 'learn', label: '学习模式' },
   { id: 'notebook', label: '生词本' },
   { id: 'library', label: '全部词库' },
+  { id: 'corpus', label: '我的语料' },
 ] as const;
 type Mode = (typeof MODES)[number]['id'];
 
@@ -72,11 +76,23 @@ export default function Vocabulary() {
   const [progress, setProgress] = useState<ProgressMap>(() => readStorage(KEY_PROGRESS, {}));
   const [book, setBook] = useState<VocabEntry[]>(() => readStorage(STORAGE_KEYS.VOCAB_BOOK, []));
   const [daily, setDaily] = useState<DailyCount>(getDailyCount);
+  const [lookupOpen, setLookupOpen] = useState(false); // 页级查词面板
+  const [corpusWords, setCorpusWords] = useState<CorpusWord[] | null>(null); // 语料单词（null=加载中）
 
   // 进度 / 生词本 / 今日计数持久化
   useEffect(() => writeStorage(KEY_PROGRESS, progress), [progress]);
   useEffect(() => writeStorage(STORAGE_KEYS.VOCAB_BOOK, book), [book]);
   useEffect(() => writeStorage(KEY_DAILY, daily), [daily]);
+
+  // 进入「学习模式」或「我的语料」时加载语料单词（每次进入刷新，反映最新上传）
+  useEffect(() => {
+    if (mode !== 'learn' && mode !== 'corpus') return;
+    let cancelled = false;
+    void getCorpusWords()
+      .then((list) => { if (!cancelled) setCorpusWords(list); })
+      .catch(() => { if (!cancelled) setCorpusWords([]); });
+    return () => { cancelled = true; };
+  }, [mode]);
 
   /** 切换生词本收藏状态（词卡星标 / 全部词库长按共用） */
   const toggleFavorite = (word: Word) => {
@@ -99,7 +115,17 @@ export default function Vocabulary() {
       {/* ===== Section 1 — 页头 + 模式切换 ===== */}
       <header className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-serif text-3xl font-bold text-ink">单词学习</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-serif text-3xl font-bold text-ink">单词学习</h1>
+            {/* 查词入口（韩中互查），原位于生词本工具行，移至标题旁全局可用 */}
+            <button
+              type="button"
+              onClick={() => setLookupOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-warm bg-paper px-4 py-1.5 text-sm text-ink-secondary shadow-card transition-colors hover:border-terracotta hover:text-terracotta"
+            >
+              <BookMarked size={15} /> 查词
+            </button>
+          </div>
           <p className="mt-1 font-kr text-sm text-ink-muted">단어 공부</p>
           {/* 分段控制器：激活段赤陶橘实底白字 + layoutId 滑块 */}
           <div className="mt-5 inline-flex rounded-full border border-warm bg-paper p-1 shadow-card">
@@ -148,6 +174,7 @@ export default function Vocabulary() {
               setProgress={setProgress}
               book={book}
               toggleFavorite={toggleFavorite}
+              corpusWords={corpusWords ?? []}
               onLearned={() => {
                 setDaily((d) => ({ ...d, count: d.count + 1 }));
                 updateStats({ wordsLearned: getStats().wordsLearned + 1 });
@@ -158,7 +185,23 @@ export default function Vocabulary() {
           {mode === 'library' && (
             <LibraryMode progress={progress} book={book} toggleFavorite={toggleFavorite} />
           )}
+          {mode === 'corpus' && (
+            <CorpusWordsMode
+              corpusWords={corpusWords}
+              book={book}
+              onRefresh={() => {
+                setCorpusWords(null);
+                void getCorpusWords().then(setCorpusWords).catch(() => setCorpusWords([]));
+              }}
+              goLearn={() => setMode('learn')}
+            />
+          )}
         </motion.div>
+      </AnimatePresence>
+
+      {/* 页级查词面板（标题旁「查词」按钮触发，韩中互查） */}
+      <AnimatePresence>
+        {lookupOpen && <WordLookupModal onClose={() => setLookupOpen(false)} />}
       </AnimatePresence>
 
       {/* ===== Section 5 — 底部学习建议 ===== */}
@@ -185,18 +228,25 @@ interface LearnModeProps {
   setProgress: React.Dispatch<React.SetStateAction<ProgressMap>>;
   book: VocabEntry[];
   toggleFavorite: (w: Word) => void;
+  /** 来自用户语料的单词（「我的语料」分类） */
+  corpusWords: CorpusWord[];
   /** 完成一词（认识/模糊）时回调，用于今日计数 */
   onLearned: () => void;
 }
 
-function LearnMode({ progress, setProgress, book, toggleFavorite, onLearned }: LearnModeProps) {
+function LearnMode({ progress, setProgress, book, toggleFavorite, corpusWords, onLearned }: LearnModeProps) {
   const [categoryId, setCategoryId] = useState(CATEGORIES[0].id);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [slideKey, setSlideKey] = useState(0); // 切词滑入动画 key
   const [plusOne, setPlusOne] = useState(0);   // 「认识 +1」飘分 key
 
-  const words = useMemo(() => WORDS.filter((w) => w.category === categoryId), [categoryId]);
+  // 分类列表 = 内置分类 + 「我的语料」（语料提取的词，可为空）
+  const corpusAsWords = useMemo(() => corpusWords.map(corpusWordToWord), [corpusWords]);
+  const words = useMemo(
+    () => (categoryId === CORPUS_CATEGORY ? corpusAsWords : WORDS.filter((w) => w.category === categoryId)),
+    [categoryId, corpusAsWords],
+  );
   const word = words[index];
   const doneCount = words.filter((w) => progress[w.id]).length;
 
@@ -225,7 +275,7 @@ function LearnMode({ progress, setProgress, book, toggleFavorite, onLearned }: L
 
   return (
     <section className="flex flex-col items-center gap-6">
-      {/* 分类胶囊：横向滚动，选中实心 */}
+      {/* 分类胶囊：横向滚动，选中实心；末尾为「我的语料」分类 */}
       <div className="flex w-full gap-2 overflow-x-auto pb-1">
         {CATEGORIES.map((c) => (
           <button
@@ -242,8 +292,39 @@ function LearnMode({ progress, setProgress, book, toggleFavorite, onLearned }: L
             {c.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => selectCategory(CORPUS_CATEGORY)}
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm transition-all duration-200',
+            categoryId === CORPUS_CATEGORY
+              ? 'bg-terracotta font-medium text-paper shadow-card'
+              : 'border border-warm bg-paper text-ink-secondary hover:bg-sand',
+          )}
+        >
+          <FolderOpen size={14} /> 我的语料{corpusAsWords.length > 0 && `（${corpusAsWords.length}）`}
+        </button>
       </div>
 
+      {/* 「我的语料」分类为空时引导上传 */}
+      {categoryId === CORPUS_CATEGORY && words.length === 0 && (
+        <div className="flex w-full max-w-[480px] flex-col items-center gap-3 rounded-2xl border border-dashed border-warm bg-paper p-8 text-center">
+          <FolderOpen size={28} className="text-ink-muted" />
+          <p className="text-sm text-ink-secondary">
+            还没有从语料中识别到单词。<br />
+            先去语料中心上传文本/PDF/音频，或完成一次转写。
+          </p>
+          <Link
+            to="/corpus"
+            className="rounded-full bg-terracotta px-5 py-2 text-sm font-medium text-paper transition-colors hover:bg-terracotta-deep"
+          >
+            去上传语料 →
+          </Link>
+        </div>
+      )}
+
+      {categoryId === CORPUS_CATEGORY && words.length === 0 ? null : (
+      <>
       {/* 顶部细进度条：本组已完成度 */}
       <div className="w-full max-w-[480px]">
         <div className="mb-1.5 flex justify-between text-xs text-ink-muted">
@@ -322,11 +403,11 @@ function LearnMode({ progress, setProgress, book, toggleFavorite, onLearned }: L
         </button>
         <ControlButton onClick={() => goTo(index + 1)} label="下一个" icon={<ChevronRight size={16} />} />
       </div>
+      </>
+      )}
     </section>
   );
 }
-
-/** 学习模式控制条中的中性按钮（上一个/翻面/下一个） */
 function ControlButton({ onClick, label, icon }: { onClick: () => void; label: string; icon: React.ReactNode }) {
   return (
     <button
@@ -356,7 +437,6 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
   const [debounced, setDebounced] = useState(''); // 300ms 防抖后的过滤词
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [confirmClear, setConfirmClear] = useState(false);
-  const [lookupOpen, setLookupOpen] = useState(false); // 查词面板
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /** 搜索防抖：输入 300ms 后再过滤 */
@@ -397,18 +477,7 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
           >
             去学习 →
           </button>
-          <button
-            type="button"
-            onClick={() => setLookupOpen(true)}
-            className="flex items-center gap-1.5 rounded-full border border-warm bg-paper px-5 py-2.5 text-sm text-ink-secondary shadow-card transition-colors hover:border-terracotta hover:text-terracotta"
-          >
-            <BookMarked size={15} /> 查词
-          </button>
         </div>
-        {/* 查词面板（空态也可用） */}
-        <AnimatePresence>
-          {lookupOpen && <WordLookupModal onClose={() => setLookupOpen(false)} />}
-        </AnimatePresence>
       </div>
     );
   }
@@ -435,13 +504,6 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
           <option value="date">按日期</option>
           <option value="mastered">按掌握度</option>
         </select>
-        <button
-          type="button"
-          onClick={() => setLookupOpen(true)}
-          className="flex items-center gap-1.5 rounded-full border border-warm bg-paper px-4 py-2 text-sm text-ink-secondary shadow-card transition-colors hover:border-terracotta hover:text-terracotta"
-        >
-          <BookMarked size={15} /> 查词
-        </button>
         <button
           type="button"
           onClick={() => {
@@ -589,11 +651,6 @@ function NotebookMode({ book, setBook, goLearn }: NotebookModeProps) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* 查词面板（本地释义 + 在线三词典 + 拼读 + 加入生词本） */}
-      <AnimatePresence>
-        {lookupOpen && <WordLookupModal onClose={() => setLookupOpen(false)} />}
-      </AnimatePresence>
     </section>
   );
 }
@@ -725,6 +782,143 @@ function LibraryMode({ progress, book, toggleFavorite }: LibraryModeProps) {
           </motion.div>
         );
       })}
+    </section>
+  );
+}
+
+// ============================================================
+// Section 6 — 我的语料（从上传语料中提取的单词）
+// ============================================================
+
+interface CorpusWordsModeProps {
+  /** 语料单词列表（null = 正在扫描语料） */
+  corpusWords: CorpusWord[] | null;
+  book: VocabEntry[];
+  onRefresh: () => void;
+  goLearn: () => void;
+}
+
+function CorpusWordsMode({ corpusWords, book, onRefresh, goLearn }: CorpusWordsModeProps) {
+  const [query, setQuery] = useState('');
+
+  /** 搜索过滤（韩语/中文/来源语料名） */
+  const list = useMemo(() => {
+    if (!corpusWords) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return corpusWords;
+    return corpusWords.filter(
+      (cw) =>
+        cw.entry.ko.includes(q) ||
+        cw.entry.zh.toLowerCase().includes(q) ||
+        cw.sources.some((s) => s.toLowerCase().includes(q)),
+    );
+  }, [corpusWords, query]);
+
+  /** 加入生词本（带词性与语料来源标记） */
+  const addWord = (cw: CorpusWord) => {
+    const added = addToVocabBook({
+      ko: cw.entry.ko,
+      rom: cw.entry.rom,
+      zh: cw.entry.zh,
+      pos: cw.entry.pos || `语料·${cw.sources[0] ?? ''}`,
+    });
+    showToast(added ? '已加入生词本' : '生词本中已有该词');
+  };
+
+  // 扫描中
+  if (corpusWords === null) {
+    return (
+      <div className="flex items-center justify-center gap-2 rounded-3xl border border-warm bg-paper p-16 text-sm text-ink-muted shadow-card">
+        <Loader2 size={16} className="animate-spin" /> 正在扫描你的语料库…
+      </div>
+    );
+  }
+
+  // 空态：引导去语料中心上传
+  if (corpusWords.length === 0) {
+    return (
+      <EmptyState
+        image="/empty-corpus.svg"
+        title="语料中还没有识别到单词"
+        description="上传文本/PDF 语料，或为音视频完成一次转写后，这里会自动汇总语料中出现的可学单词。"
+      />
+    );
+  }
+
+  return (
+    <section>
+      {/* 工具行：说明 + 搜索 + 去学习 + 重新扫描 */}
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm text-ink-secondary">
+          共从语料中识别到 <span className="font-medium text-ink">{corpusWords.length}</span> 个可学单词
+        </p>
+        <label className="flex min-w-[200px] flex-1 items-center gap-2 rounded-full border border-warm bg-paper px-4 py-2 shadow-card">
+          <Search size={16} className="shrink-0 text-ink-muted" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索单词 / 释义 / 语料名…"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-ink-muted"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={goLearn}
+          className="rounded-full bg-terracotta px-4 py-2 text-sm font-medium text-paper shadow-card transition-colors hover:bg-terracotta-deep"
+        >
+          在学习模式练习 →
+        </button>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="rounded-full border border-warm bg-paper px-4 py-2 text-sm text-ink-secondary shadow-card transition-colors hover:bg-sand"
+        >
+          重新扫描
+        </button>
+      </div>
+
+      {/* 语料单词列表 */}
+      <ul className="mt-6 space-y-2">
+        {list.map((cw, i) => {
+          const inBook = book.some((e) => e.ko === cw.entry.ko);
+          return (
+            <motion.li
+              key={cw.entry.ko}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: Math.min(i * 0.03, 0.3) }}
+              className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-warm bg-paper px-5 py-3 shadow-card"
+            >
+              <span className="font-kr text-xl text-ink">{cw.entry.ko}</span>
+              <span className="min-w-0 text-sm text-ink-secondary">
+                {cw.entry.zh}
+                <span className="mt-0.5 block truncate text-xs text-ink-muted" title={cw.sources.join('、')}>
+                  来源：{cw.sources.join('、')} · 出现 {cw.count} 次
+                </span>
+              </span>
+              <span className="ml-auto flex items-center gap-2">
+                <SpeakButton text={cw.entry.ko} size="sm" />
+                <button
+                  type="button"
+                  onClick={() => !inBook && addWord(cw)}
+                  disabled={inBook}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs transition-colors duration-200',
+                    inBook
+                      ? 'cursor-default bg-olive/10 text-olive'
+                      : 'border border-warm text-ink-muted hover:border-terracotta hover:text-terracotta',
+                  )}
+                >
+                  {inBook ? '已在生词本' : '加入生词本'}
+                </button>
+              </span>
+            </motion.li>
+          );
+        })}
+        {list.length === 0 && (
+          <li className="py-10 text-center text-sm text-ink-muted">没有找到匹配的语料单词</li>
+        )}
+      </ul>
     </section>
   );
 }
