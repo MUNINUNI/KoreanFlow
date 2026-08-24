@@ -16,6 +16,22 @@
 
 ---
 
+## [v2.3.1] - 2026-08-23【预览崩溃修复】
+
+### 🐛 问题修复
+
+- 【修复】V13 预览一直加载失败：定位到 `api/lib/env.ts` 在生产环境缺少环境变量（APP_ID/APP_SECRET/DATABASE_URL）时直接 throw，导致服务器进程启动即崩溃。改为告警降级——静态页面照常可访问，数据库/登录功能自动离线降级
+- 【修复】Dockerfile 运行阶段漏拷 `.env`：容器内数据库连接配置丢失，补 `COPY .env ./.env`（平台注入的同名环境变量优先级更高，不受影响）
+- 【优化】Dockerfile 构建阶段加 `NODE_OPTIONS=--max-old-space-size=4096`，防止大项目在小内存容器里构建 OOM；`npm ci` 加 `--no-audit --no-fund` 提速
+
+### ✅ 验证记录
+
+- 干净目录完整复现 Docker 构建步骤（npm ci → esbuild 修复 → build）通过
+- 复现崩溃：无环境变量启动旧包必现 `Missing required environment variable: APP_ID` 进程崩溃
+- 修复后：无环境变量启动首页 200、auth.me 优雅降级返回 null、日志仅告警不崩溃
+
+---
+
 ## [v2.3.0] - 2026-08-23【账号系统：注册登录 + 学习通知】
 
 ### ✅ 新增功能
