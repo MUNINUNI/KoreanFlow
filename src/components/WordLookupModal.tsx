@@ -192,7 +192,8 @@ export default function WordLookupModal({ initialWord = '', exampleKo, onClose }
                 ) : netZh ? (
                   <div className="space-y-1.5">
                     <p className="text-sm text-ink-secondary">
-                      网络译法：<span className="font-kr text-base font-bold text-ink">{netZh}</span><button
+                      网络译法：<span className="font-kr text-base font-bold text-ink">{netZh}</span>
+                      <button
                         onClick={() => pickCandidate(netZh)}
                         className="ml-2 text-xs font-medium text-terracotta hover:underline"
                       >
